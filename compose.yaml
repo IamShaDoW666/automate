@@ -1,0 +1,10 @@
+services:
+  automate-app:
+    build: .    
+    ports:
+      - "7001:7001"
+    volumes:
+      - /app/node_modules  
+    environment:
+      - NODE_ENV=production
+    command: ["npm", "run", "start"]    
