@@ -1,15 +1,11 @@
 import express from "express";
 import { createServer } from "http";
-import { Server, Socket } from "socket.io";
 import { EVENTS } from "./constants/events";
+import WebSocket from "ws";
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Adjust based on frontend origin
-  },
-});
+const wss = new WebSocket.Server({ server });
 const PORT = 7001;
 
 app.get("/", (req, res) => {
@@ -17,30 +13,41 @@ app.get("/", (req, res) => {
 });
 
 app.get("/light/on", (req, res) => {
-  io.emit(EVENTS.SERVER.LIGHT_ON, "Light is ON"); // Broadcast to all clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(EVENTS.SERVER.LIGHT_ON);
+    }
+  });
   res.json({ message: "Light is ON", status: 200 });
 });
 
 app.get("/light/off", (req, res) => {
-  io.emit(EVENTS.SERVER.LIGHT_OFF, "Light is OFF"); // Broadcast to all clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(EVENTS.SERVER.LIGHT_OFF);
+    }
+  });
   res.json({ message: "Light is OFF", status: 200 });
 });
 
-io.on("connection", (socket: Socket) => {
-  console.log(`Client connected: ${socket.id}`);
+wss.on("connection", (ws) => {
+  console.log("New client connected");
 
-  socket.on(EVENTS.CLIENT.LIGHT_ON, (data) => {
-    console.log(`Turning ON: ${data}`);
-    io.emit(EVENTS.SERVER.LIGHT_ON, data); // Broadcast to all clients
+  ws.send("Welcome to the WebSocket server!");
+
+  ws.on("message", (message) => {
+    console.log(`Received: ${message}`);
+
+    // Broadcast to all connected clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(`Server received: ${message}`);
+      }
+    });
   });
 
-  socket.on(EVENTS.CLIENT.LIGHT_OFF, (data) => {
-    console.log(`Turning OFF: ${data}`);
-    io.emit(EVENTS.SERVER.LIGHT_OFF, data); // Broadcast to all clients
-  });
-
-  socket.on("disconnect", () => {
-    console.log(`User disconnected: ${socket.id}`);
+  ws.on("close", () => {
+    console.log("Client disconnected");
   });
 });
 
