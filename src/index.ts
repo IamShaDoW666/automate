@@ -16,6 +16,16 @@ app.get("/", (req, res) => {
   res.json({ message: "Hello World", status: 200 });
 });
 
+app.get("/light/on", (req, res) => {
+  io.emit(EVENTS.SERVER.LIGHT_ON, "Light is ON"); // Broadcast to all clients
+  res.json({ message: "Light is ON", status: 200 });
+});
+
+app.get("/light/off", (req, res) => {
+  io.emit(EVENTS.SERVER.LIGHT_OFF, "Light is OFF"); // Broadcast to all clients
+  res.json({ message: "Light is OFF", status: 200 });
+});
+
 io.on("connection", (socket: Socket) => {
   console.log(`Client connected: ${socket.id}`);
 
