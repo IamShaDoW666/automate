@@ -73,7 +73,7 @@ function sendEventToClient(client: WebSocket, data: string, requestId: string) {
     client.on(EVENTS.CLIENT.LIGHT, onMessage);
 
     // Send message to client
-    client.send(data);
+    client.send(EVENTS.SERVER.LIGHT);
 
     // Timeout if no response received
     setTimeout(() => {
