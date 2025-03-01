@@ -41,7 +41,7 @@ app.get("/light", (req, res) => {
         // Send event to client and wait for a response
         const response = await sendEventToClient(
           client,
-          { event: EVENTS.SERVER.LIGHT, requestId, message: "Hello Client!" },
+          EVENTS.SERVER.LIGHT,
           requestId
         );
         res.json({ success: true, clientResponse: response });
@@ -53,12 +53,12 @@ app.get("/light", (req, res) => {
 });
 
 // Function to send event to client and wait for acknowledgment
-function sendEventToClient(client: WebSocket, data: {event: string, message: string, requestId: string}, requestId: string) {
+function sendEventToClient(client: WebSocket, data: string, requestId: string) {
   return new Promise((resolve, reject) => {
     const onMessage = (message: any) => {
       try {
         const parsedMessage = JSON.parse(message);
-
+        console.log(message);
         // Check if the response has the same requestId
         if (parsedMessage.requestId === requestId) {
           client.removeListener(EVENTS.CLIENT.LIGHT, onMessage); // Stop listening once the correct response is received
@@ -73,11 +73,11 @@ function sendEventToClient(client: WebSocket, data: {event: string, message: str
     client.on(EVENTS.CLIENT.LIGHT, onMessage);
 
     // Send message to client
-    client.send(JSON.stringify(data));
+    client.send(data);
 
     // Timeout if no response received
     setTimeout(() => {
-      client.removeListener("message", onMessage);
+      client.removeListener(EVENTS.CLIENT.LIGHT, onMessage);
       reject(new Error("Timeout waiting for client response"));
     }, 5000); // 5-second timeout
   });
