@@ -5,33 +5,47 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const http_1 = require("http");
-const socket_io_1 = require("socket.io");
 const events_1 = require("./constants/events");
+const ws_1 = __importDefault(require("ws"));
 const app = (0, express_1.default)();
 const server = (0, http_1.createServer)(app);
-const io = new socket_io_1.Server(server, {
-    cors: {
-        origin: "*", // Adjust based on frontend origin
-    },
-});
+const wss = new ws_1.default.Server({ server });
 const PORT = 7001;
 app.get("/", (req, res) => {
     res.json({ message: "Hello World", status: 200 });
 });
-io.on("connection", (socket) => {
-    console.log(`Client connected: ${socket.id}`);
-    socket.on(events_1.EVENTS.CLIENT.LIGHT_ON, (data) => {
-        console.log(`Turning ON: ${data}`);
-        io.emit(events_1.EVENTS.SERVER.LIGHT_ON, data); // Broadcast to all clients
+app.get("/light/on", (req, res) => {
+    wss.clients.forEach((client) => {
+        if (client.readyState === ws_1.default.OPEN) {
+            client.send(events_1.EVENTS.SERVER.LIGHT_ON);
+        }
     });
-    socket.on(events_1.EVENTS.CLIENT.LIGHT_OFF, (data) => {
-        console.log(`Turning OFF: ${data}`);
-        io.emit(events_1.EVENTS.SERVER.LIGHT_OFF, data); // Broadcast to all clients
+    res.json({ message: "Light is ON", status: 200 });
+});
+app.get("/light/off", (req, res) => {
+    wss.clients.forEach((client) => {
+        if (client.readyState === ws_1.default.OPEN) {
+            client.send(events_1.EVENTS.SERVER.LIGHT_OFF);
+        }
     });
-    socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.id}`);
+    res.json({ message: "Light is OFF", status: 200 });
+});
+wss.on("connection", (ws) => {
+    console.log("New client connected");
+    ws.send("Welcome to the WebSocket server!");
+    ws.on("message", (message) => {
+        console.log(`Received: ${message}`);
+        // Broadcast to all connected clients
+        wss.clients.forEach((client) => {
+            if (client.readyState === ws_1.default.OPEN) {
+                client.send(`Server received: ${message}`);
+            }
+        });
+    });
+    ws.on("close", () => {
+        console.log("Client disconnected");
     });
 });
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server is running on ${PORT}`);
 });

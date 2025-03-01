@@ -2,6 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import { EVENTS } from "./constants/events";
 import WebSocket from "ws";
+import { v4 as uuidv4 } from "uuid";
 
 const app = express();
 const server = createServer(app);
@@ -29,6 +30,58 @@ app.get("/light/off", (req, res) => {
   });
   res.json({ message: "Light is OFF", status: 200 });
 });
+
+app.get("/light", (req, res) => {
+  wss.clients.forEach(async (client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        // Generate a unique ID for the request
+        const requestId = uuidv4();
+
+        // Send event to client and wait for a response
+        const response = await sendEventToClient(
+          client,
+          { event: EVENTS.SERVER.LIGHT, requestId, message: "Hello Client!" },
+          requestId
+        );
+        res.json({ success: true, clientResponse: response });
+      } catch (error) {
+        res.status(500).json({ error: "No response from client" });
+      }
+    }
+  });
+});
+
+// Function to send event to client and wait for acknowledgment
+function sendEventToClient(client: WebSocket, data: {event: string, message: string, requestId: string}, requestId: string) {
+  return new Promise((resolve, reject) => {
+    const onMessage = (message: any) => {
+      try {
+        const parsedMessage = JSON.parse(message);
+
+        // Check if the response has the same requestId
+        if (parsedMessage.requestId === requestId) {
+          client.removeListener(EVENTS.CLIENT.LIGHT, onMessage); // Stop listening once the correct response is received
+          resolve(parsedMessage);
+        }
+      } catch (err) {
+        console.error("Error parsing client response:", err);
+      }
+    };
+
+    // Listen for messages from client
+    client.on(EVENTS.CLIENT.LIGHT, onMessage);
+
+    // Send message to client
+    client.send(JSON.stringify(data));
+
+    // Timeout if no response received
+    setTimeout(() => {
+      client.removeListener("message", onMessage);
+      reject(new Error("Timeout waiting for client response"));
+    }, 5000); // 5-second timeout
+  });
+}
 
 wss.on("connection", (ws) => {
   console.log("New client connected");
