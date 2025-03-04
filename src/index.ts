@@ -3,12 +3,12 @@ import { createServer } from "http";
 import { EVENTS } from "./constants/events";
 import WebSocket from "ws";
 import { decodeWebSocketMessage, stringToJson } from "./utils/common";
+import { SocketEvent } from "./constants/types";
 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocket.Server({ server });
 const PORT = 7001;
-
 let status = {
   light: false
 };
@@ -54,17 +54,17 @@ app.get("/light", (req, res) => {
 
 wss.on("connection", (ws) => {
   console.log("New client connected");
+  ws.on("message", (message) => {    
+    const data = JSON.parse(decodeWebSocketMessage(message)) as SocketEvent<any>;    
 
-  ws.send("Welcome to the WebSocket server!");
-
-  ws.on("message", (message) => {
-    console.log(`<<<<<< ${message}`);
-    status = stringToJson(decodeWebSocketMessage(message));
+    switch (data.event) {
+      case EVENTS.CLIENT.LIGHT:
+        status = data.data
+    }
     // Broadcast to all connected clients
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(`Server received: ${message}`);
-        console.log(">>>>> " + message);
+        client.send(JSON.stringify(data));        
       }
     });
   });
