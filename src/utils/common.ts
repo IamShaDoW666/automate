@@ -12,12 +12,12 @@ export const decodeWebSocketMessage = (message: RawData): string => {
   }
 };
 
-export const stringToJson = (data: string): {light: boolean} => {
-  try {
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("Error parsing JSON:", error);
+export const stringToJson = (data: string) => {
+  try {    
     const fixedInput = data.replace(/(\w+):/g, '"$1":'); // Add quotes around keys
     return JSON.parse(fixedInput);
+  } catch (error) {
+    console.error("Error parsing JSON:", error);
+    return { light: false };
   }
 };
